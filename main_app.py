@@ -1,151 +1,92 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-import time
+import pandas as pd
+from google import genai
+import json
 
-# 1. საიტის პრემიუმ კონფიგურაცია და დიზაინი
-st.set_page_config(
-    page_title="LocalSpy AI - Premium Market Intelligence", 
-    page_icon="🕵️‍♂️", 
-    layout="wide" # ფართო ეკრანის რეჟიმი უფრო პროფესიონალურია
-)
+# გვერდის სათაური და კონფიგურაცია
+st.set_page_config(page_title="LocalSpy AI - ლოკალური მარკეტინგის დაზვერვა", page_icon="🕵️‍♂️", layout="wide")
 
-# 2. ინდივიდუალური CSS სტილები დიზაინის გასალამაზებლად (Custom Frontend)
+# CSS სტილები პრემიუმ Frontend-ისთვის
 st.markdown("""
     <style>
-    .main-title {
-        font-size: 42px !important;
-        font-weight: 800 !important;
-        color: #1E3A8A;
-        text-align: center;
-        margin-bottom: 5px;
-    }
-    .sub-title {
-        font-size: 18px !important;
-        color: #4B5563;
-        text-align: center;
-        margin-bottom: 35px;
-    }
-    .card {
-        background-color: #F3F4F6;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #3B82F6;
-        margin-bottom: 15px;
-    }
-    .metric-box {
-        background-color: #EEF2F6;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
-    }
+    .main { background-color: #f8f9fa; }
+    .stButton>button { background-color: #4C6EF5; color: white; border-radius: 8px; width: 100%; }
+    .report-card { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
     </style>
-""", unsafe_allow_html=True) # <- შესწორებულია აქ
+""", unsafe_allow_html=True)
 
-# 3. აპლიკაციის თავფურცელი (Header)
-st.markdown('<div class="main-title">🕵️‍♂️ LocalSpy AI</div>', unsafe_allow_html=True) # <- შესწორებულია აქ
-st.markdown('<div class="sub-title">Premium Competitor Intelligence Platform for US & EU Markets</div>', unsafe_allow_html=True) # <- შესწორებულია აქ
+st.title("🕵️‍♂️ LocalSpy AI")
+st.subheader("იპოვე მარკეტინგული ხარვეზები ადგილობრივ ბიზნესებში და შესთავაზე შენი მომსახურება")
 
-st.write("---")
-
-# 4. გვერდის გაყოფა ორ სვეტად (მარცხნივ მენიუ, მარჯვნივ შედეგები)
-col1, col2 = st.columns([1, 2], gap="large")
-
+# მომხმარებლის შეყვანილი მონაცემები
+col1, col2 = st.columns(2)
 with col1:
-    st.markdown("### ⚙️ Search Configuration")
-    st.caption("მიუთითეთ სამიზნე პარამეტრები დასაკვირვებლად")
-    
-    # მომხმარებლის შესაყვანი ველები ლამაზ კონტეინერში
-    with st.container(border=True):
-        business_type = st.text_input("🎯 Business Category", placeholder="e.g., Dentist, Pizza, Hair Salon")
-        city = st.text_input("📍 Target City", placeholder="e.g., New York, Chicago, London")
-        max_results = st.slider("📊 Competitors to Analyze", min_value=3, max_value=10, value=5)
-        
-        submit_btn = st.button("Launch AI Spy Bot 🚀", use_container_width=True)
-
+    business_type = st.text_input("ბიზნესის სფერო (მაგ: სტომატოლოგია, ფიტნეს კლუბი, სასტუმრო)", placeholder="სტომატოლოგია")
 with col2:
-    st.markdown("### 📊 Live Analytics Dashboard")
-    
-    if submit_btn:
-        if business_type and city:
-            # ვიზუალური პროგრესის დაწყება
-            status_text = st.empty()
-            progress_bar = st.progress(0)
-            
-            status_text.info("📡 Connecting to live data stream...")
-            time.sleep(0.5)
-            progress_bar.progress(25)
-            
-            # საძიებო მისამართის მომზადება
-            search_query = business_type.replace(" ", "+")
-            city_query = city.replace(" ", "+")
-            url = f"https://www.yelp.com/search?find_desc={search_query}&find_loc={city_query}"
-            
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            
-            try:
-                status_text.info(f"🕵️‍♂️ Scanning business directories in {city}...")
-                response = requests.get(url, headers=headers)
-                soup = BeautifulSoup(response.text, "html.parser")
-                listings = soup.find_all("h3")
-                progress_bar.progress(70)
-                
-                competitors = []
-                for item in listings:
-                    link = item.find("a")
-                    if link:
-                        name = link.text.strip()
-                        if name and not name.isdigit() and len(name) > 2 and "Yelp" not in name:
-                            if name not in competitors:
-                                competitors.append(name)
-                
-                progress_bar.progress(100)
-                status_text.empty() # წავშალოთ ჩატვირთვის ტექსტი
-                
-                if competitors:
-                    final_list = competitors[:max_results]
-                    
-                    # 5. პრემიუმ მეტრიკების პანელი (Metrics)
-                    m1, m2, m3 = st.columns(3)
-                    with m1:
-                        st.markdown(f'<div class="metric-box">🔹 <b>Analyzed</b><br><span style="font-size:22px; color:#2563EB; font-weight:700;">{len(final_list)} Businesses</span></div>', unsafe_allow_html=True) # <- შესწორებულია აქ
-                    with m2:
-                        st.markdown('<div class="metric-box">⚠️ <b>Risk Factor</b><br><span style="font-size:22px; color:#DC2626; font-weight:700;">High</span></div>', unsafe_allow_html=True) # <- შესწორებულია აქ
-                    with m3:
-                        st.markdown('<div class="metric-box">💡 <b>Market Gap</b><br><span style="font-size:22px; color:#16A34A; font-weight:700;">Found</span></div>', unsafe_allow_html=True) # <- შესწორებულია აქ
-                    
-                    st.write(" ")
-                    st.markdown("#### 🕵️‍♂️ Intelligence Report per Competitor:")
-                    
-                    # 6. თითოეული კონკურენტის ლამაზი ბარათები
-                    for i, comp in enumerate(final_list, 1):
-                        with st.container(border=True):
-                            st.markdown(f"##### 🏢 {i}. {comp}")
-                            
-                            # სტრატეგიული ინფორმაცია ჩაშენებული იერარქიით
-                            c_left, c_right = st.columns([1, 1])
-                            with c_left:
-                                if i % 2 == 0:
-                                    st.error("❌ **Weakness:** Customer Service Delay (Reviews mention unanswered calls)")
-                                else:
-                                    st.error("❌ **Weakness:** Pricing Discrepancy (Hidden fees reported online)")
-                            with c_right:
-                                st.info("🎯 **Your Opportunity:** Run ads emphasizing 'Instant Booking' or '100% Transparent Prices'")
-                    
-                    # ბიზნეს რჩევა ბოლოში
-                    st.success("💡 **Executive Summary:** The local market suffers from transparency and communication speed. Position your brand to solve these two gaps for immediate market share acquisition.")
-                    
-                else:
-                    st.error("No active listings found for this category. Please refine your English search terms.")
-                    
-            except Exception as e:
-                st.error(f"Network Connection Interrupted: {e}")
-                
-        else:
-            st.error("Please enter both Business Category and Target City.")
+    city = st.text_input("ქალაქი / ლოკაცია (მაგ: თბილისი, ბათუმი, ქუთაისი)", placeholder="თბილისი")
+
+if st.button("მოძებნე და გააანალიზე ლოკაციები"):
+    if not business_type or not city:
+        st.warning("გთხოვთ შეავსოთ ორივე ველი!")
     else:
-        # საწყისი შეტყობინება, როცა მომხმარებელი ჯერ არაფერს ეძებს
-        st.info("💡 Dashboard is empty. Enter parameters on the left and click 'Launch AI Spy Bot' to extract real-time intelligence.")
+        # შემოწმება, დევს თუ არა Gemini-ს გასაღები საიტის პარამეტრებში
+        if "GEMINI_API_KEY" not in st.secrets:
+            st.error("შეცდომა: st.secrets-ში 'GEMINI_API_KEY' ვერ მოიძებნა. გთხოვთ ჩასვათ ის საიტის Settings -> Secrets-ში.")
+        else:
+            api_key = st.secrets["GEMINI_API_KEY"]
+            
+            with st.spinner("🤖 LocalSpy AI უკავშირდება გუგლის სერვერებს და აანალიზებს ბიზნესებს..."):
+                try:
+                    # Google GenAI კლიენტის ინიციალიზაცია
+                    client = genai.Client(api_key=api_key)
+                    
+                    # პრომპტი ხელოვნური ინტელექტისთვის
+                    prompt = f"""
+                    შენ ხარ ლოკალური მარკეტინგის ექსპერტი "LocalSpy AI". 
+                    მოძებნე და მოიფიქრე 3 რეალური ან ძალიან ტიპური მაგალითი ბიზნესებისა სფეროდან: "{business_type}" ქალაქში: "{city}".
+                    თითოეული ბიზნესისთვის დააგენერირე მარკეტინგული აუდიტი და შეადგინე JSON ფორმატი ზუსტად ამ სტრუქტურით (გამოიყენე ქართული ენა):
+                    [
+                      {{
+                        "სახელი": "ბიზნესის დასახელება",
+                        "ტელეფონი": "ტელეფონის ნომერი",
+                        "ხარვეზი": "რა მარკეტინგული პრობლემა აქვს (მაგ: არ აქვს საიტი, ცუდი Facebook გვერდი, დაბალი რეიტინგი Google Maps-ზე)",
+                        "პოტენციალი": "როგორ დაეხმარება ამ პრობლემის მოგვარება კლიენტების მოზიდვაში",
+                        "შეთავაზება": "რა სერვისი უნდა შესთავაზოს ფრილანსერმა (მაგ: საიტის დამზადება 500 ლარად, რეკლამის ჩართვა)"
+                      }}
+                    ]
+                    პასუხად დააბრუნე მხოლოდ და მხოლოდ სუფთა JSON ტექსტი, ყოველგვარი დამატებითი მისალმების ან '```json' ნიშნების გარეშე.
+                    """
+                    
+                    # მოთხოვნა Gemini მოდელთან (გამოიყენება უახლესი და სწრაფი gemini-2.5-flash)
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt,
+                    )
+                    
+                    # პასუხის გაწმენდა და JSON-ად ქცევა
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```json"):
+                        raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                    elif raw_text.startswith("```"):
+                        raw_text = raw_text.replace("```", "").strip()
+                        
+                    data = json.loads(raw_text)
+                    
+                    # შედეგების ჩვენება საიტზე
+                    st.success(f"🕵️‍♂️ ნაპოვნია პოტენციური კლიენტები სფეროში: {business_type} ({city})")
+                    
+                    for biz in data:
+                        st.markdown(f"""
+                            <div class="report-card">
+                                <h3>🏢 {biz['სახელი']}</h3>
+                                <p>📞 <b>ტელეფონი:</b> {biz['ტელეფონი']}</p>
+                                <p>❌ <b>მთავარი ხარვეზი:</b> <span style="color: #e03131;">{biz['ხარვეზი']}</span></p>
+                                <p>📈 <b>ზრდის პოტენციალი:</b> {biz['პოტენციალი']}</p>
+                                <div style="background-color: #edf2ff; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                    💼 <b>საუკეთესო სტრატეგია შენთვის (რა მიჰყიდო):</b> {biz['შეთავაზება']}
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                except Exception as e:
+                    st.error(f"დაფიქსირდა შეცდომა Gemini API-სთან კავშირისას: {e}")
